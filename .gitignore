@@ -1,5 +1,10 @@
-zig-cache/
+.zig-cache/
 zig-out/
+.idea/
 build/
 build-*/
 docgen_tmp/
+/out/x86_64-windows-Debug
+/int/x86_64-windows-Debug
+/.vscode
+/.vs

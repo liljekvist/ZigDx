@@ -1,24 +1,22 @@
 const std = @import("std");
+const glfw = @import("zglfw");
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+pub fn main() !u8 {
+    std.debug.print("Starting application", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    //const allocator = gpa.allocator();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    try glfw.init();
+    defer glfw.terminate();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    glfw.windowHintTyped(.client_api, .no_api);
+    const glfw_window = try glfw.Window.create(1600, 1200, "test", null);
+    defer glfw_window.destroy();
+    while (!glfw_window.shouldClose()) {
+        glfw.pollEvents();
+    }
 
-    try bw.flush(); // don't forget to flush!
-}
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    return 0;
 }

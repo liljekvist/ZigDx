@@ -22,6 +22,27 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    @import("system_sdk").addLibraryPathsTo(exe);
+
+    const zglfw = b.dependency("zglfw", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zglfw", zglfw.module("root"));
+    exe.linkLibrary(zglfw.artifact("glfw"));
+
+    const zwin32 = b.dependency("zwin32", .{
+        .target = target,
+    });
+    const zwin32_module = zwin32.module("root");
+    exe.root_module.addImport("zwin32", zwin32_module);
+
+    const zd3d12 = b.dependency("zd3d12", .{
+        .target = target,
+    });
+    const zd3d12_module = zd3d12.module("root");
+    exe.root_module.addImport("zd3d12", zd3d12_module);
+
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
@@ -49,6 +70,10 @@ pub fn build(b: *std.Build) void {
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    exe.rdynamic = true;
+
+    @import("zwin32").install_d3d12(&exe.step, .bin);
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/main.zig"),
