@@ -1,4 +1,11 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+const name = "ZigDx";
+
+pub fn pathResolve(b: *std.Build, paths: []const []const u8) []u8 {
+    return std.fs.path.resolve(b.allocator, paths) catch @panic("OOM");
+}
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -41,6 +48,21 @@ pub fn build(b: *std.Build) void {
     });
     const zd3d12_module = zd3d12.module("root");
     exe.root_module.addImport("zd3d12", zd3d12_module);
+    
+    const zpool = b.dependency("zpool", .{});
+    exe.root_module.addImport("zpool", zpool.module("root"));
+
+    const zgpu = b.dependency("zgpu", .{});
+    exe.root_module.addImport("zgpu", zgpu.module("root"));
+    exe.linkLibrary(zgpu.artifact("zdawn"));
+
+    const zgui = b.dependency("zgui", .{
+        .shared = false,
+        .with_implot = true,
+    });
+
+    exe.root_module.addImport("zgui", zgui.module("root"));
+    exe.linkLibrary(zgui.artifact("imgui"));
 
 
     // This declares intent for the executable to be installed into the
@@ -82,6 +104,25 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+
+    if (builtin.os.tag == .windows or builtin.os.tag == .linux) {
+        const compile_shaders = @import("zwin32").addCompileShaders(b, name, .{ .shader_ver = "6_6" });
+        const root_path = pathResolve(b, &.{ @src().file, ".."});
+        const content_path = pathResolve(b, &.{ root_path, "src", "content" });
+
+        const hlsl_path = b.pathJoin(&.{ content_path, name ++ ".hlsl" });
+        compile_shaders.addVsShader(hlsl_path, "vsMain", b.pathJoin(&.{ content_path, name ++ ".vs.cso" }), "");
+        compile_shaders.addPsShader(hlsl_path, "psMain", b.pathJoin(&.{ content_path, name ++ ".ps.cso" }), "");
+
+        exe.step.dependOn(compile_shaders.step);
+    }
+
+    // This is needed to export symbols from an .exe file.
+    // We export D3D12SDKVersion and D3D12SDKPath symbols which
+    // is required by DirectX 12 Agility SDK.
+    exe.rdynamic = true;
+
+    @import("zwin32").install_d3d12(&exe.step, .bin);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
